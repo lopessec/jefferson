@@ -7,8 +7,8 @@ import zlib
 import binascii
 
 import cstruct
-
-from jefferson import jffs2_lzma, rtime
+#from jefferson import jffs2_lzma, rtime
+import jffs2_lzma, rtime
 
 
 def PAD(x):
@@ -68,6 +68,10 @@ class Jffs2_unknown_node(cstruct.CStruct):
     """
 
     def unpack(self, data):
+        if data == None or len(data) <=0:
+            self.hdr_crc_match = False
+            return
+        print "in jffs2unknw_node unpack %d" % len(data)
         cstruct.CStruct.unpack(self, data[:self.size])
         comp_hrd_crc = mtd_crc(data[:self.size - 4])
 
@@ -145,10 +149,14 @@ class Jffs2_raw_dirent(cstruct.CStruct):
     /* uint8_t data[0]; -> name */
     """
 
-    def unpack(self, data, node_offset):
+    #def unpack(self, data, node_offset):
+    def unpack(self, data):#, node_offset):
+        if data == None or len(data) <= 0:
+            self.name_crc_match = False
+            return
         cstruct.CStruct.unpack(self, data[:self.size])
         self.name = data[self.size:self.size + self.nsize]
-        self.node_offset = node_offset
+        self.node_offset = len(data)#node_offset
 
         if mtd_crc(data[:self.size - 8]) == self.node_crc:
             self.node_crc_match = True
@@ -197,6 +205,10 @@ class Jffs2_raw_inode(cstruct.CStruct):
     """
 
     def unpack(self, data):
+        if data == None or len(data) <= 0:
+            self.node_crc_match = False
+            return
+            
         cstruct.CStruct.unpack(self, data[:self.size])
 
         node_data = data[self.size:self.size + self.csize]
@@ -287,7 +299,10 @@ def scan_fs(content, endianness, verbose=False):
         else:
             pos = find_result
 
+        print "scan_fs found pos %d" % pos
+
         unknown_node = Jffs2_unknown_node()
+        print "before firts unpack %d" % len(content[pos:pos+unknown_node.size])
         unknown_node.unpack(content[pos:pos + unknown_node.size])
         if not unknown_node.hdr_crc_match:
             pos += 1
@@ -299,7 +314,8 @@ def scan_fs(content, endianness, verbose=False):
             if unknown_node.nodetype in NODETYPES:
                 if unknown_node.nodetype == JFFS2_NODETYPE_DIRENT:
                     dirent = Jffs2_raw_dirent()
-                    dirent.unpack(content[0 + offset:], offset)
+                    dirent.unpack(content[0 + offset:])
+                    #dirent.unpack(content[0 + offset:], offset)
                     if dirent.ino in dirent_dict:
                         print 'duplicate inode use detected!!!'
                         fs_index += 1
@@ -467,6 +483,7 @@ def main():
         os.mkdir(dest_path)
 
     content = open(args.filesystem, 'rb').read()
+    print len(content)
     fs_list = scan_fs(content, cstruct.BIG_ENDIAN, verbose=args.verbose)
     fs_list += scan_fs(content, cstruct.LITTLE_ENDIAN, verbose=args.verbose)
 
