@@ -1,11 +1,11 @@
 # jefferson
 JFFS2 filesystem extraction tool
 
+This is a slightly modified version of the original work with fixes for better error handling
+
 Installation
 ============
-```bash
-$ sudo python setup.py install
-```
+Just install the dependencies, clone or extract the project, browse to src folder and run jefferson
 
 
 Dependencies
